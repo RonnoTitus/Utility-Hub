@@ -1,0 +1,19 @@
+# Dependency directories
+/vendor/
+
+# Configuration files
+.env
+
+# Server/OS specific files
+.DS_Store
+Thumbs.db
+
+# Developer IDE settings (Optional but recommended)
+/.idea/
+/.vscode/
+
+# Exclude the root installation markdown guide
+/WAMP-INSTALL.md
+
+# Exclude the entire docs folder and everything inside it
+/docs/

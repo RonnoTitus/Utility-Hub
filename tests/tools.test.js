@@ -1,0 +1,56 @@
+const assert = require('assert');
+globalThis.btoa = globalThis.btoa; 
+const { logic } = require(require('path').join(__dirname, '..', 'public', 'assets', 'tools.js'));
+const t = (n, f) => { try { f(); console.log('ok  ', n); } catch (e) { console.log('FAIL', n, '-', e.message); process.exitCode = 1; } };
+
+t('password length/charsets', () => {
+  const p = logic.generatePassword({ length: 20, lower: true, upper: true, digits: true, symbols: true }, globalThis.crypto);
+  assert.equal(p.length, 20);
+  assert(/[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p));
+});
+t('password ambiguous excluded', () => {
+  for (let i = 0; i < 200; i++) assert(!/[0OIl1]/.test(logic.generatePassword({ length: 30, lower: true, upper: true, digits: true, avoidAmbiguous: true })));
+});
+t('password needs a set', () => assert.throws(() => logic.generatePassword({ length: 10 })));
+t('randomInt unbiased range', () => { for (let i = 0; i < 500; i++) { const v = logic.randomInt(7); assert(v >= 0 && v < 7); } });
+t('dateDiff basic', () => { const d = logic.dateDiff('2020-01-31', '2020-03-01'); assert.deepEqual([d.years, d.months, d.days, d.totalDays], [0, 1, 1, 30]); });
+t('dateDiff year', () => { const d = logic.dateDiff('2000-02-29', '2024-02-29'); assert.deepEqual([d.years, d.months, d.days], [24, 0, 0]); });
+t('dateDiff negative', () => assert(logic.dateDiff('2024-05-01', '2024-04-01').negative));
+t('dateDiff invalid', () => assert.throws(() => logic.dateDiff('2024-02-30', '2024-03-01')));
+t('age', () => { const a = logic.age('1990-10-28', '2026-10-28'); assert.equal(a.years, 36); assert.equal(a.daysToBirthday, 0); assert.equal(a.weekday, 'Sunday'); });
+t('age next birthday rolls', () => { const a = logic.age('1990-01-15', '2026-10-28'); assert.equal(a.nextBirthday, '2027-01-15'); assert.equal(a.daysToBirthday, 79); });
+t('age future dob rejected', () => assert.throws(() => logic.age('2030-01-01', '2026-10-28')));
+t('loan known value', () => { const r = logic.loan(100000, 12, 12); assert(Math.abs(r.payment - 8884.88) < 0.01, r.payment); assert(r.schedule.at(-1).balance < 1e-6); });
+t('loan zero rate', () => { const r = logic.loan(1200, 0, 12); assert.equal(r.payment, 100); assert.equal(r.interestTotal, 0); });
+t('loan rejects bad', () => assert.throws(() => logic.loan(0, 5, 12)));
+t('compound annual', () => { const r = logic.compound(1000, 10, 2, 1, 0); assert(Math.abs(r.balance - 1210) < 1e-6, r.balance); });
+t('compound monthly known', () => { const r = logic.compound(1000, 12, 1, 12, 0); assert(Math.abs(r.balance - 1126.825) < 0.01, r.balance); });
+t('compound contributions only', () => { const r = logic.compound(0, 0, 1, 12, 100); assert.equal(r.balance, 1200); });
+t('unit length', () => assert(Math.abs(logic.convertUnit('Length', 'Mile', 'Kilometre', 1) - 1.609344) < 1e-9));
+t('unit temp', () => { assert(Math.abs(logic.convertUnit('Temperature', 'Celsius', 'Fahrenheit', 100) - 212) < 1e-9); assert(Math.abs(logic.convertUnit('Temperature', 'Fahrenheit', 'Celsius', -40) + 40) < 1e-9); });
+t('unit below abs zero', () => assert.throws(() => logic.convertUnit('Temperature', 'Celsius', 'Kelvin', -300)));
+t('unit bad', () => assert.throws(() => logic.convertUnit('Length', 'Foo', 'Metre', 1)));
+t('formatNumber', () => { assert.equal(logic.formatNumber(1.609344), '1.609344'); assert.equal(logic.formatNumber(0.1 + 0.2), '0.3'); });
+t('json ok', () => assert.equal(logic.formatJson('{"a":1}', 'min'), '{"a":1}'));
+t('json indent', () => assert.equal(logic.formatJson('{"a":[1]}', '2'), '{\n  "a": [\n    1\n  ]\n}'));
+t('json error', () => assert.throws(() => logic.formatJson('{"a":}', '2')));
+t('base64 roundtrip utf8', () => { const s = 'Héllo 🌍 Kampala'; assert.equal(logic.base64Decode(logic.base64Encode(s)), s); });
+t('base64 known', () => assert.equal(logic.base64Encode('hello'), 'aGVsbG8='));
+t('base64 urlsafe/no pad', () => assert.equal(logic.base64Decode('aGVsbG8'), 'hello'));
+t('base64 invalid', () => assert.throws(() => logic.base64Decode('***')));
+t('color hex->hsl', () => { const c = logic.parseColor('#145B4A'); assert.deepEqual(c, { r: 20, g: 91, b: 74 }); assert.deepEqual(logic.rgbToHsl(c), { h: 166, s: 64, l: 22 }); });
+t('color short hex', () => assert.deepEqual(logic.parseColor('#fff'), { r: 255, g: 255, b: 255 }));
+t('color hsl roundtrip', () => assert.deepEqual(logic.parseColor('hsl(0, 100%, 50%)'), { r: 255, g: 0, b: 0 }));
+t('color rgb range', () => assert.throws(() => logic.parseColor('rgb(300,0,0)')));
+t('color contrast', () => { const c = logic.contrast({ r: 0, g: 0, b: 0 }); assert(Math.abs(c.white - 21) < 0.01); });
+t('rgbToHex', () => assert.equal(logic.rgbToHex({ r: 0, g: 15, b: 255 }), '#000FFF'));
+t('case title', () => assert.equal(logic.convertCase('hello wORLD-foo', 'title'), 'Hello World-Foo'));
+t('case sentence', () => assert.equal(logic.convertCase('hi there. HOW are you? fine', 'sentence'), 'Hi there. How are you? Fine'));
+t('case camel/snake/kebab/pascal', () => {
+  assert.equal(logic.convertCase('Hello big world', 'camel'), 'helloBigWorld');
+  assert.equal(logic.convertCase('Hello big world', 'pascal'), 'HelloBigWorld');
+  assert.equal(logic.convertCase('Hello big world', 'snake'), 'hello_big_world');
+  assert.equal(logic.convertCase('Hello big world', 'kebab'), 'hello-big-world');
+});
+t('case slug accents', () => assert.equal(logic.convertCase('  Café Ünïcode! ', 'slug'), 'cafe-unicode'));
+t('case reverse', () => assert.equal(logic.convertCase('abc', 'reverse'), 'cba'));

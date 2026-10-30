@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# Keep application source, dependencies, setup files, and local assets private.
+RewriteRule ^(?:app|database|docs|tests|vendor|scripts|attached_assets|\.local|\.agents)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:\.env|composer\.(?:json|lock)|.+\.md)$ - [F,L,NC]
+
+# Serve static assets from public/ and send clean routes to the public front controller.
+RewriteRule ^public/ - [L]
+RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+RewriteRule ^(.*)$ public/$1 [L,QSA]
