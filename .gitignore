@@ -17,3 +17,4 @@ Thumbs.db
 
 # Exclude the entire docs folder and everything inside it
 /docs/
+/database/ 
